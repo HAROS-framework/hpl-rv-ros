@@ -23,7 +23,7 @@ from typing import Any, Dict, List, Optional
 import argparse
 import sys
 
-from bakeapy import __version__ as current_version
+from hplrv_ros import __version__ as current_version
 
 ###############################################################################
 # Argument Parsing

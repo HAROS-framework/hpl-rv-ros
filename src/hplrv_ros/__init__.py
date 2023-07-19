@@ -12,7 +12,7 @@ from importlib.metadata import PackageNotFoundError, version  # pragma: no cover
 ###############################################################################
 
 try:
-    __version__ = version('bakeapy')
+    __version__ = version('hplrv_ros')
 except PackageNotFoundError:  # pragma: no cover
     # package is not installed
     __version__ = 'unknown'

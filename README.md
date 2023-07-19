@@ -1,33 +1,23 @@
-# Bake a Py
+# HPL RV for ROS
 
-This project provides a template from which you can create your own Python packages and projects.
-It uses modern tools and conventions to ensure a good development experience.
+This project provides tools to create and deploy runtime monitors for your Robot Operating System applications.
 
-- [Package Structure](#package-structure)
+- [Installing](#installing)
+- [Usage](#usage)
 - [GitHub Features](#github-features)
 - [Tooling](#tooling)
 
-## Package Structure
+## Installing
 
-Package structure was inspired by various templates and recommended best practices, such as:
+This package can be installed with `pip`:
 
-- https://github.com/TezRomacH/python-package-template
-- https://github.com/pyscaffold/pyscaffold
-- https://github.com/f4str/python-package-template
-- https://github.com/audreyfeldroy/cookiecutter-pypackage
-- https://github.com/ionelmc/python-nameless
+```bash
+pip install hpl-rv-ros
+```
 
-It provides a `src` directory, under which your own packages sit. Example files for `__init__.py`, `__main__.py` and `cli.py` are already provided.
+## Usage
 
-Tests are placed under the `tests` directory, and documentation under the `docs` directory.
-
-To start your new project, you should change its name, URL and metadata details at:
-
-1. `README.md`
-2. `CHANGELOG.md`
-3. `setup.py`
-4. `tests/*.py`
-5. `src/*`
+TO DO
 
 ## GitHub Features
 
@@ -39,7 +29,6 @@ The `.github` directory comes with a number of files to configure certain GitHub
 - Keep package dependencies up to date with Dependabot. The configuration file can be found at `dependabot.yml`.
 - Keep Release Drafts automatically up to date with Pull Requests, using the [Release Drafter GitHub Action](https://github.com/marketplace/actions/release-drafter). The configuration file can be found at `release-drafter.yml` and the workflow at `workflows/release-drafter.yml`.
 - Automatic package building and publishing when pushing a new version tag to `main`. The workflow can be found at `workflows/publish-package.yml`.
-- Code quality and security analysis with CodeQL. The workflow can be found at `workflows/codeql-analysis.yml`.
 
 ## Tooling
 
