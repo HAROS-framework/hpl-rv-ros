@@ -1,0 +1,153 @@
+{# SPDX-License-Identifier: MIT #}
+{# Copyright © 2021 André Santos #}
+
+{##############################################################################}
+{# RENDERED CODE #}
+{##############################################################################}
+
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+
+# SPDX-License-Identifier: MIT
+# Copyright © 2021 André Santos
+
+###############################################################################
+# Imports
+###############################################################################
+
+from __future__ import unicode_literals
+from builtins import object, range, str
+from collections import deque, namedtuple
+from functools import partial
+from math import (
+    acos,
+    asin,
+    atan,
+    atan2,
+    ceil,
+    cos,
+    degrees,
+    e as E,
+    floor,
+    log,
+    log10,
+    pi as PI,
+    radians,
+    sqrt,
+    sin,
+    tan,
+)
+from threading import Lock
+
+import rospy
+{% for rospkg in ros_imports %}
+import {{ rospkg }}.msg as {{ rospkg }}
+{% endfor %}
+
+###############################################################################
+# Constants and Data Structures
+###############################################################################
+
+INF = float("inf")
+NAN = float("nan")
+
+MsgRecord = namedtuple('MsgRecord', ('topic', 'timestamp', 'msg'))
+
+
+###############################################################################
+# Helper Functions
+###############################################################################
+
+
+def prod(iterable):
+    x = 1
+    for y in iterable:
+        x = x * y
+        if x == 0:
+            return 0
+    return x
+
+
+###############################################################################
+# Monitor Classes
+###############################################################################
+
+
+{{ monitor_classes|join('\n\n\n') }}
+
+
+###############################################################################
+# ROS Node
+###############################################################################
+
+
+class HplMonitorNode(object):
+    def __init__(self):
+        self.monitors = [
+            {# -#}
+        {% for cname in class_names %}
+            {{ cname }}(),
+        {% endfor %}
+        ]
+        self.pubs = []
+        for i in range(len(self.monitors)):
+            mon = self.monitors[i]
+            self.pubs.append(rospy.Publisher('~p{}/verdict'.format(i),
+                std_msgs.Bool, queue_size=1, latch=True))
+            mon.on_success = partial(self._on_success, i)
+            mon.on_violation = partial(self._on_failure, i)
+        self.subs = [
+            {# -#}
+        {% for topic, typename in topics.items() %}
+            rospy.Subscriber('{{ topic }}', {{ typename|replace('/', '.') }},
+                self.on_msg_{{ topic|replace('/', '_') }}),
+        {% endfor %}
+        ]
+
+    def run(self):
+        t = rospy.get_time()
+        for mon in self.monitors:
+            mon.on_launch(t)
+        rate = rospy.Rate(100) # 100hz
+        try:
+            while not rospy.is_shutdown():
+                t = rospy.get_time()
+                for mon in self.monitors:
+                    mon.on_timer(t)
+                rate.sleep()
+        except rospy.ROSInterruptException:
+            t = rospy.get_time()
+            for mon in self.monitors:
+                mon.on_shutdown(t)
+    {# -#}
+{% for topic, indices in callbacks.items() %}
+
+    {% set cbname = 'on_msg_' ~ topic.replace('/', '_') %}
+    def {{ cbname }}(self, msg):
+        t = rospy.get_time()
+        {% for i in indices %}
+        self.monitors[{{ i }}].{{ cbname }}(msg, t)
+        {% endfor %}
+{% endfor %}
+
+    def _on_success(self, i, _stamp, _witness):
+        mon = self.monitors[i]
+        assert mon.verdict is True
+        # t = rospy.Time.from_sec(mon.time_state)
+        self.pubs[i].publish(True)
+
+    def _on_failure(self, i, _stamp, _witness):
+        mon = self.monitors[i]
+        assert mon.verdict is False
+        # t = rospy.Time.from_sec(mon.time_state)
+        self.pubs[i].publish(False)
+
+
+def main():
+    rospy.init_node("hplrv_monitor", log_level=rospy.DEBUG)
+    node = HplMonitorNode()
+    node.run()
+
+
+if __name__ == "__main__":
+    main()
