@@ -153,6 +153,8 @@ def main(args=None):
     rclpy.init(args=args)
     node = HplMonitorNode()
     node.on_launch()
+    # Docs for spin_once:
+    # https://docs.ros.org/en/ros2_packages/rolling/api/rclpy/api/init_shutdown.html#rclpy.spin_once
     rclpy.spin(node)
     node.on_shutdown()
     # Destroy the node explicitly
