@@ -71,8 +71,9 @@ setup(
     },
     python_requires='>=3.8, <4',
     install_requires=[
-        'hpl-rv<1.0.0',
+        'hpl-rv>=1.0.0',
         'hpl-specs<1.0.0',
+        'Jinja2>=3.1.0',
     ],
     extras_require={
         'dev': ['pytest', 'tox'],
