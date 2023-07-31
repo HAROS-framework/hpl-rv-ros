@@ -18,12 +18,26 @@ Some of the structure of this file came from this StackExchange question:
 # Imports
 ###############################################################################
 
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Final, Iterable, List, Optional
 
 import argparse
+from pathlib import Path
 import sys
+from traceback import print_exc
+
+from hpl.ast import HplProperty, HplSpecification
+from hpl.parser import specification_parser
+from hplrv.gen import lib_from_files, lib_from_properties, TemplateRenderer
 
 from hplrv_ros import __version__ as current_version
+from hplrv_ros.constants import ANY_PROP_LIST
+from hplrv_ros.rospy import generate_node as generate_rospy
+
+###############################################################################
+# Constants
+###############################################################################
+
+PROG: Final[str] = 'hpl-rv-ros'
 
 ###############################################################################
 # Argument Parsing
@@ -31,16 +45,33 @@ from hplrv_ros import __version__ as current_version
 
 
 def parse_arguments(argv: Optional[List[str]]) -> Dict[str, Any]:
-    msg = 'A short description of the project.'
-    parser = argparse.ArgumentParser(description=msg)
+    description = 'Tools to enable HPL Runtime Verification for ROS applications.'
+    parser = argparse.ArgumentParser(prog=PROG, description=description)
 
     parser.add_argument(
-        '--version', dest='version', action='store_true', help='Prints the program version.'
+        '-v',
+        '--version',
+        action='version',
+        version=f'{PROG} {current_version}',
+        help='prints the program version',
     )
 
     parser.add_argument(
-        'args', metavar='ARG', nargs=argparse.ZERO_OR_MORE, help='An argument for the program.'
+        '--rospy',
+        action='store_true',
+        help='use a ROS1 node template (default: ROS2)',
     )
+
+    parser.add_argument(
+        '-f',
+        '--files',
+        action='store_true',
+        help='process args as HPL files (default: HPL properties)',
+    )
+
+    parser.add_argument('-o', '--output', help='output file to place generated code')
+
+    parser.add_argument('args', nargs='+', help='input properties')
 
     args = parser.parse_args(args=argv)
     return vars(args)
@@ -72,15 +103,47 @@ def load_configs(args: Dict[str, Any]) -> Dict[str, Any]:
 
 
 ###############################################################################
+# Helper Functions
+###############################################################################
+
+
+def _property_list_from_files(sources: Iterable[str]) -> List[HplProperty]:
+    properties = []
+    parser = specification_parser()
+    for source in sources:
+        path: Path = Path(source).resolve(strict=True)
+        text: str = path.read_text(encoding='utf-8').strip()
+        spec: HplSpecification = parser.parse(text)
+        properties.extend(spec.properties)
+    return properties
+
+
+###############################################################################
 # Commands
 ###############################################################################
 
 
-def do_real_work(args: Dict[str, Any], configs: Dict[str, Any]) -> None:
-    print(f'Arguments: {args}')
-    print(f'Configurations: {configs}')
-    if args['version']:
-        print(f'Version: {current_version}')
+def generate_ros_node(args: Dict[str, Any], _configs: Dict[str, Any]) -> int:
+    properties: ANY_PROP_LIST = args['args']
+    if args.get('files'):
+        properties = _property_list_from_files(properties)
+    output: str = generate_rospy(properties, topic_types)
+    output: str = lib_from_properties(properties)
+
+    renderer = TemplateRenderer.from_pkg_data(pkg='hplrv_ros')
+    data = { 'lib': output }
+    if args.get('rospy'):
+        output = renderer.render_template('rospy.python.jinja', data)
+    else:
+        output = renderer.render_template('rclpy.python.jinja', data)
+
+    input_path: str = args.get('output')
+    if input_path:
+        path: Path = Path(input_path).resolve(strict=False)
+        path.write_text(output, encoding='utf-8')
+    else:
+        print(output)
+    return 0
 
 
 ###############################################################################
@@ -95,20 +158,14 @@ def main(argv: Optional[List[str]] = None) -> int:
         # Load additional config files here, e.g., from a path given via args.
         # Alternatively, set sane defaults if configuration is missing.
         config = load_configs(args)
-        do_real_work(args, config)
+        return generate_ros_node(args, config)
 
     except KeyboardInterrupt:
         print('Aborted manually.', file=sys.stderr)
         return 1
 
     except Exception as err:
-        # In real code the `except` would probably be less broad.
-        # Turn exceptions into appropriate logs and/or console output.
-
-        print('An unhandled exception crashed the application!', err)
-
-        # Non-zero return code to signal error.
-        # It can, of course, be more fine-grained than this general code.
+        print('An unhandled exception crashed the application!')
+        print(err)
+        print_exc()
         return 1
-
-    return 0  # success
