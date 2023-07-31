@@ -5,97 +5,29 @@
 {# RENDERED CODE #}
 {##############################################################################}
 
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-
-# SPDX-License-Identifier: MIT
-# Copyright © 2021 André Santos
-
-###############################################################################
-# Imports
-###############################################################################
-
-from __future__ import unicode_literals
-from builtins import object, range, str
-from collections import deque, namedtuple
-from functools import partial
-from math import (
-    acos,
-    asin,
-    atan,
-    atan2,
-    ceil,
-    cos,
-    degrees,
-    e as E,
-    floor,
-    log,
-    log10,
-    pi as PI,
-    radians,
-    sqrt,
-    sin,
-    tan,
-)
-from threading import Lock
-
-import rospy
-{% for rospkg in ros_imports %}
-import {{ rospkg }}.msg as {{ rospkg }}
-{% endfor %}
-
-###############################################################################
-# Constants and Data Structures
-###############################################################################
-
-INF = float("inf")
-NAN = float("nan")
-
-MsgRecord = namedtuple('MsgRecord', ('topic', 'timestamp', 'msg'))
-
-
-###############################################################################
-# Helper Functions
-###############################################################################
-
-
-def prod(iterable):
-    x = 1
-    for y in iterable:
-        x = x * y
-        if x == 0:
-            return 0
-    return x
-
-
-###############################################################################
-# Monitor Classes
-###############################################################################
-
-
-{{ monitor_classes|join('\n\n\n') }}
+{{ lib }}
 
 
 ###############################################################################
 # ROS Node
 ###############################################################################
 
+import rospy
+{% for rospkg in ros_imports %}
+import {{ rospkg }}.msg as {{ rospkg }}
+{% endfor %}
 
-class HplMonitorNode(object):
+
+class HplMonitorNode:
     def __init__(self):
-        self.monitors = [
-            {# -#}
-        {% for cname in class_names %}
-            {{ cname }}(),
-        {% endfor %}
-        ]
-        self.pubs = []
-        for i in range(len(self.monitors)):
-            mon = self.monitors[i]
-            self.pubs.append(rospy.Publisher('~p{}/verdict'.format(i),
-                std_msgs.Bool, queue_size=1, latch=True))
-            mon.on_success = partial(self._on_success, i)
-            mon.on_violation = partial(self._on_failure, i)
+        self.monitor = HplMonitorManager(success_cb=self._on_success, failure_cb=self._on_failure)
+        self.pubs = {}
+        for i in range(len(self.monitor.monitors)):
+            mon = self.monitor.monitors[i]
+            cls = type(mon).__name__
+            assert cls not in self.pubs
+            self.pubs[cls] = rospy.Publisher(f'~p{i}/verdict',
+                std_msgs.Bool, queue_size=1, latch=True)
         self.subs = [
             {# -#}
         {% for topic, typename in topics.items() %}
@@ -106,41 +38,34 @@ class HplMonitorNode(object):
 
     def run(self):
         t = rospy.get_time()
-        for mon in self.monitors:
-            mon.on_launch(t)
+        self.monitor.launch(t)
         rate = rospy.Rate(100) # 100hz
         try:
             while not rospy.is_shutdown():
                 t = rospy.get_time()
-                for mon in self.monitors:
-                    mon.on_timer(t)
+                self.monitor.on_timer(t)
                 rate.sleep()
         except rospy.ROSInterruptException:
             t = rospy.get_time()
-            for mon in self.monitors:
-                mon.on_shutdown(t)
+            self.monitor.shutdown(t)
     {# -#}
-{% for topic, indices in callbacks.items() %}
+{% for topic in callbacks %}
 
     {% set cbname = 'on_msg_' ~ topic.replace('/', '_') %}
     def {{ cbname }}(self, msg):
         t = rospy.get_time()
-        {% for i in indices %}
-        self.monitors[{{ i }}].{{ cbname }}(msg, t)
-        {% endfor %}
+        self.monitor.{{ cbname }}(msg, t)
 {% endfor %}
 
-    def _on_success(self, i, _stamp, _witness):
-        mon = self.monitors[i]
-        assert mon.verdict is True
+    def _on_success(self, mon, _timestamp, _witness):
         # t = rospy.Time.from_sec(mon.time_state)
-        self.pubs[i].publish(True)
+        cls = type(mon).__name__
+        self.pubs[cls].publish(True)
 
-    def _on_failure(self, i, _stamp, _witness):
-        mon = self.monitors[i]
-        assert mon.verdict is False
+    def _on_failure(self, mon, _timestamp, _witness):
         # t = rospy.Time.from_sec(mon.time_state)
-        self.pubs[i].publish(False)
+        cls = type(mon).__name__
+        self.pubs[cls].publish(False)
 
 
 def main():
