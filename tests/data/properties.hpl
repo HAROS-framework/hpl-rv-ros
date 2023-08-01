@@ -1,0 +1,8 @@
+# id: p1
+globally: no /a {data > 0}
+
+# id: p2
+after /p {data}: some /b {data = 0} within 200 ms
+
+# id: p3
+until /q {not data}: /a {data > 0} causes /b {data >= 0} within 5s
