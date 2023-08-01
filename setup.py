@@ -74,6 +74,7 @@ setup(
         'hpl-rv>=1.0.0',
         'hpl-specs<1.0.0',
         'Jinja2>=3.1.0',
+        'ruamel.yaml>=0.17.0',
     ],
     extras_require={
         'dev': ['pytest', 'tox'],
