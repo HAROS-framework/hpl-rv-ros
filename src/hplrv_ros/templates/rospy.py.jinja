@@ -49,7 +49,7 @@ class HplMonitorNode:
             t = rospy.get_time()
             self.monitor.shutdown(t)
     {# -#}
-{% for topic in callbacks %}
+{% for topic in topics %}
 
     {% set cbname = 'on_msg_' ~ topic.replace('/', '_') %}
     def {{ cbname }}(self, msg):

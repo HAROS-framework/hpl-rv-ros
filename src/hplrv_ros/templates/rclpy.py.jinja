@@ -1,0 +1,96 @@
+{# SPDX-License-Identifier: MIT #}
+{# Copyright © 2023 André Santos #}
+
+{##############################################################################}
+{# RENDERED CODE #}
+{##############################################################################}
+
+{{ lib }}
+
+
+###############################################################################
+# ROS Node
+###############################################################################
+
+import rclpy
+from rclpy.node import Node
+from rclpy.qos import DurabilityPolicy, HistoryPolicy, QoSProfile
+{% for rospkg in ros_imports %}
+import {{ rospkg }}.msg as {{ rospkg }}
+{% endfor %}
+
+
+class HplMonitorNode(Node):
+    def __init__(self):
+        super().__init__('hplrv_monitor')
+        self.monitor = HplMonitorManager(success_cb=self._on_success, failure_cb=self._on_failure)
+        self.timer = self.create_timer(0.01, self.on_timer)
+        latching_qos = QoSProfile(
+            depth=1,
+            durability=DurabilityPolicy.TRANSIENT_LOCAL,
+            history=HistoryPolicy.KEEP_LAST,
+        )
+        self.pubs = {}
+        for i in range(len(self.monitors)):
+            mon = self.monitor.monitors[i]
+            cls = type(mon).__name__
+            assert cls not in self.pubs
+            self.pubs[cls] = self.create_publisher(std_msgs.Bool, f'~p{i}/verdict', latching_qos)
+        self.subs = [
+            {# -#}
+        {% for topic, typename in topics.items() %}
+            self.create_subscription(
+                {{ typename|replace('/', '.') }},
+                '{{ topic }}',
+                self.on_msg_{{ topic|replace('/', '_') }},
+                10,
+            ),
+        {% endfor %}
+        ]
+
+    def on_launch(self):
+        t = self.get_clock().now()
+        self.monitor.launch(t)
+
+    def on_shutdown(self):
+        t = self.get_clock().now()
+        self.monitor.shutdown(t)
+
+    def on_timer(self):
+        t = self.get_clock().now()
+        self.monitor.on_timer(t)
+    {# -#}
+{% for topic in topics %}
+
+    {% set cbname = 'on_msg_' ~ topic.replace('/', '_') %}
+    def {{ cbname }}(self, msg):
+        t = self.get_clock().now()
+        self.monitor.{{ cbname }}(msg, t)
+{% endfor %}
+
+    def _on_success(self, mon, _timestamp, _witness):
+        cls = type(mon).__name__
+        self.pubs[cls].publish(True)
+
+    def _on_failure(self, mon, _timestamp, _witness):
+        cls = type(mon).__name__
+        self.pubs[cls].publish(False)
+
+
+def main(args=None):
+    rclpy.init(args=args)
+    node = HplMonitorNode()
+    node.on_launch()
+    # Docs for spin_once:
+    # https://docs.ros.org/en/ros2_packages/rolling/api/rclpy/api/init_shutdown.html#rclpy.spin_once
+    rclpy.spin(node)
+    node.on_shutdown()
+    # Destroy the node explicitly
+    # (optional - otherwise it will be done automatically
+    # when the garbage collector destroys the node object)
+    node.destroy_node()
+    rclpy.shutdown()
+
+
+if __name__ == "__main__":
+    main(args=sys.argv[1:])
