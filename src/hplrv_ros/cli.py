@@ -18,19 +18,19 @@ Some of the structure of this file came from this StackExchange question:
 # Imports
 ###############################################################################
 
-from typing import Any, Dict, Final, Iterable, List, Optional
+from typing import Any, Dict, Final, List, Optional
 
 import argparse
 from pathlib import Path
 import sys
 from traceback import print_exc
 
-from hpl.ast import HplProperty, HplSpecification
-from hpl.parser import specification_parser
-from hplrv.gen import lib_from_files, lib_from_properties, TemplateRenderer
+from hpl.ast import HplProperty
+from ruamel.yaml import YAML
 
 from hplrv_ros import __version__ as current_version
-from hplrv_ros.constants import ANY_PROP_LIST
+from hplrv_ros.common import normalized_properties, properties_from_specs
+from hplrv_ros.rclpy import generate_node as generate_rclpy
 from hplrv_ros.rospy import generate_node as generate_rospy
 
 ###############################################################################
@@ -71,7 +71,13 @@ def parse_arguments(argv: Optional[List[str]]) -> Dict[str, Any]:
 
     parser.add_argument('-o', '--output', help='output file to place generated code')
 
-    parser.add_argument('args', nargs='+', help='input properties')
+    parser.add_argument(
+        'topics',
+        type=Path,
+        help='path to a YAML/JSON file with types for each topic',
+    )
+
+    parser.add_argument('specs', nargs='+', help='input properties')
 
     args = parser.parse_args(args=argv)
     return vars(args)
@@ -85,8 +91,8 @@ def parse_arguments(argv: Optional[List[str]]) -> Dict[str, Any]:
 def load_configs(args: Dict[str, Any]) -> Dict[str, Any]:
     try:
         config: Dict[str, Any] = {}
-        # with open(args['config_path'], 'r') as file_pointer:
-        # yaml.safe_load(file_pointer)
+        # yaml = YAML(typ='safe')
+        # config = yaml.load(args['config_path'])
 
         # arrange and check configs here
 
@@ -94,28 +100,11 @@ def load_configs(args: Dict[str, Any]) -> Dict[str, Any]:
     except Exception as err:
         # log or raise errors
         print(err, file=sys.stderr)
-        if str(err) == 'Really Bad':
-            raise err
+        raise err
 
         # Optional: return some sane fallback defaults.
-        sane_defaults: Dict[str, Any] = {}
-        return sane_defaults
-
-
-###############################################################################
-# Helper Functions
-###############################################################################
-
-
-def _property_list_from_files(sources: Iterable[str]) -> List[HplProperty]:
-    properties = []
-    parser = specification_parser()
-    for source in sources:
-        path: Path = Path(source).resolve(strict=True)
-        text: str = path.read_text(encoding='utf-8').strip()
-        spec: HplSpecification = parser.parse(text)
-        properties.extend(spec.properties)
-    return properties
+        # sane_defaults: Dict[str, Any] = {}
+        # return sane_defaults
 
 
 ###############################################################################
@@ -124,25 +113,26 @@ def _property_list_from_files(sources: Iterable[str]) -> List[HplProperty]:
 
 
 def generate_ros_node(args: Dict[str, Any], _configs: Dict[str, Any]) -> int:
-    properties: ANY_PROP_LIST = args['args']
+    yaml = YAML(typ='safe')
+    topic_types: Dict[str, str] = yaml.load(args['topics'])
+
     if args.get('files'):
-        properties = _property_list_from_files(properties)
-    output: str = generate_rospy(properties, topic_types)
-    output: str = lib_from_properties(properties)
-
-    renderer = TemplateRenderer.from_pkg_data(pkg='hplrv_ros')
-    data = { 'lib': output }
-    if args.get('rospy'):
-        output = renderer.render_template('rospy.python.jinja', data)
+        properties: List[HplProperty] = properties_from_specs(args['specs'])
     else:
-        output = renderer.render_template('rclpy.python.jinja', data)
+        properties = normalized_properties(args['specs'])
 
-    input_path: str = args.get('output')
-    if input_path:
-        path: Path = Path(input_path).resolve(strict=False)
+    if args.get('rospy'):
+        output: str = generate_rospy(properties, topic_types)
+    else:
+        output = generate_rclpy(properties, topic_types)
+
+    output_path: Optional[str] = args.get('output')
+    if output_path:
+        path: Path = Path(output_path).resolve(strict=False)
         path.write_text(output, encoding='utf-8')
     else:
         print(output)
+
     return 0
 
 
