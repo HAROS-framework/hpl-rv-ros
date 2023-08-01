@@ -26,6 +26,9 @@ class HplMonitorNode(Node):
     def __init__(self):
         super().__init__('hplrv_monitor')
         self.monitor = HplMonitorManager(success_cb=self._on_success, failure_cb=self._on_failure)
+        self.monitor.live_server.host = '127.0.0.1'
+        self.monitor.live_server.port = 4242
+        self._thread = None
         self.timer = self.create_timer(0.01, self.on_timer)
         latching_qos = QoSProfile(
             depth=1,
@@ -51,12 +54,16 @@ class HplMonitorNode(Node):
         ]
 
     def on_launch(self):
+        self._thread = self.monitor.live_server.start_thread()
         t = self.get_clock().now()
         self.monitor.launch(t)
 
     def on_shutdown(self):
         t = self.get_clock().now()
         self.monitor.shutdown(t)
+        assert self._thread is not None
+        self._thread.join(10.0)
+        self._thread = None
 
     def on_timer(self):
         t = self.get_clock().now()

@@ -21,6 +21,8 @@ import {{ rospkg }}.msg as {{ rospkg }}
 class HplMonitorNode:
     def __init__(self):
         self.monitor = HplMonitorManager(success_cb=self._on_success, failure_cb=self._on_failure)
+        self.monitor.live_server.host = '127.0.0.1'
+        self.monitor.live_server.port = 4242
         self.pubs = {}
         for i in range(len(self.monitor.monitors)):
             mon = self.monitor.monitors[i]
@@ -37,6 +39,7 @@ class HplMonitorNode:
         ]
 
     def run(self):
+        thread = self.monitor.live_server.start_thread()
         t = rospy.get_time()
         self.monitor.launch(t)
         rate = rospy.Rate(100) # 100hz
@@ -48,6 +51,7 @@ class HplMonitorNode:
         except rospy.ROSInterruptException:
             t = rospy.get_time()
             self.monitor.shutdown(t)
+            thread.join(10.0)
     {# -#}
 {% for topic in topics %}
 
