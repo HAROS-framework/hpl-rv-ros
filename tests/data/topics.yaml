@@ -1,0 +1,6 @@
+%YAML 1.2
+---
+/a: std_msgs/Int64
+/b: std_msgs/Int64
+/p: std_msgs/Bool
+/q: std_msgs/Bool
