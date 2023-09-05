@@ -50,9 +50,9 @@ setup(
     packages=find_packages(where='src'),
     package_dir={'': 'src'},
     include_package_data=True,
-    package_data={},  # {PYTHON_PKG: ['dir/*.file']},
+    package_data={PYTHON_PKG: ['templates']},
     classifiers=[
-        'Development Status :: 3 - Alpha',
+        'Development Status :: 4 - Beta',
         'Intended Audience :: Developers',
         'Intended Audience :: Science/Research',
         'License :: OSI Approved :: MIT License',
@@ -71,8 +71,8 @@ setup(
     },
     python_requires='>=3.8, <4',
     install_requires=[
-        'hpl-rv>=1.0.0',
-        'hpl-specs<1.0.0',
+        'hpl-rv>=1.1.2,<2.0',
+        'hpl-specs>=1.1.2,<2.0',
         'Jinja2>=3.1.0',
         'ruamel.yaml>=0.17.0',
     ],
