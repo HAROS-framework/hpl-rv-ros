@@ -5,7 +5,7 @@
 # Imports
 ###############################################################################
 
-from typing import Iterable, List, Mapping
+from collections.abc import Iterable, Mapping
 
 from hpl.ast import HplProperty
 from hplrv.gen import MonitorGenerator, TemplateRenderer
@@ -18,7 +18,7 @@ from hplrv_ros.common import ANY_SPEC_LIST, properties_from_specs
 
 
 def generate_node_from_specs(specs: ANY_SPEC_LIST, topic_types: Mapping[str, str]) -> str:
-    properties: List[HplProperty] = properties_from_specs(specs)
+    properties: list[HplProperty] = properties_from_specs(specs)
     return generate_node(properties, topic_types)
 
 

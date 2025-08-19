@@ -5,7 +5,7 @@
 # Imports
 ###############################################################################
 
-from typing import Iterable, List, Union
+from collections.abc import Iterable
 
 from pathlib import Path
 
@@ -16,24 +16,24 @@ from hpl.parser import property_parser, specification_parser
 # Constants
 ###############################################################################
 
-ANY_PROP_LIST = Iterable[Union[str, HplProperty]]
+type ANY_PROP_LIST = Iterable[str | HplProperty]
 
-ANY_SPEC = Union[str, Path, HplSpecification]
-ANY_SPEC_LIST = Iterable[Union[str, Path, HplSpecification]]
+type ANY_SPEC = str | Path | HplSpecification
+type ANY_SPEC_LIST = Iterable[str | Path | HplSpecification]
 
 ###############################################################################
 # Helper Functions
 ###############################################################################
 
 
-def normalized_properties(properties: ANY_PROP_LIST) -> List[HplProperty]:
+def normalized_properties(properties: ANY_PROP_LIST) -> list[HplProperty]:
     parser = property_parser()
     return [p if isinstance(p, HplProperty) else parser.parse(p) for p in properties]
 
 
-def properties_from_specs(specs: ANY_SPEC_LIST) -> List[HplProperty]:
+def properties_from_specs(specs: ANY_SPEC_LIST) -> list[HplProperty]:
     parser = specification_parser()
-    properties: List[HplProperty] = []
+    properties: list[HplProperty] = []
     for spec in specs:
         if isinstance(spec, HplSpecification):
             properties.extend(spec.properties)
