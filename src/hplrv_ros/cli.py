@@ -18,7 +18,7 @@ Some of the structure of this file came from this StackExchange question:
 # Imports
 ###############################################################################
 
-from typing import Any, Dict, Final, List, Optional
+from typing import Any, Final
 
 import argparse
 from pathlib import Path
@@ -44,7 +44,7 @@ PROG: Final[str] = 'hpl-rv-ros'
 ###############################################################################
 
 
-def parse_arguments(argv: Optional[List[str]]) -> Dict[str, Any]:
+def parse_arguments(argv: list[str] | None) -> dict[str, Any]:
     description = 'Tools to enable HPL Runtime Verification for ROS applications.'
     parser = argparse.ArgumentParser(prog=PROG, description=description)
 
@@ -88,9 +88,9 @@ def parse_arguments(argv: Optional[List[str]]) -> Dict[str, Any]:
 ###############################################################################
 
 
-def load_configs(args: Dict[str, Any]) -> Dict[str, Any]:
+def load_configs(args: dict[str, Any]) -> dict[str, Any]:
     try:
-        config: Dict[str, Any] = {}
+        config: dict[str, Any] = {}
         # yaml = YAML(typ='safe')
         # config = yaml.load(args['config_path'])
 
@@ -112,12 +112,12 @@ def load_configs(args: Dict[str, Any]) -> Dict[str, Any]:
 ###############################################################################
 
 
-def generate_ros_node(args: Dict[str, Any], _configs: Dict[str, Any]) -> int:
+def generate_ros_node(args: dict[str, Any], _configs: dict[str, Any]) -> int:
     yaml = YAML(typ='safe')
-    topic_types: Dict[str, str] = yaml.load(args['topics'])
+    topic_types: dict[str, str] = yaml.load(args['topics'])
 
     if args.get('files'):
-        properties: List[HplProperty] = properties_from_specs(args['specs'])
+        properties: list[HplProperty] = properties_from_specs(args['specs'])
     else:
         properties = normalized_properties(args['specs'])
 
@@ -126,7 +126,7 @@ def generate_ros_node(args: Dict[str, Any], _configs: Dict[str, Any]) -> int:
     else:
         output = generate_rclpy(properties, topic_types)
 
-    output_path: Optional[str] = args.get('output')
+    output_path: str | None = args.get('output')
     if output_path:
         path: Path = Path(output_path).resolve(strict=False)
         path.write_text(output, encoding='utf-8')
@@ -141,7 +141,7 @@ def generate_ros_node(args: Dict[str, Any], _configs: Dict[str, Any]) -> int:
 ###############################################################################
 
 
-def main(argv: Optional[List[str]] = None) -> int:
+def main(argv: list[str] | None = None) -> int:
     args = parse_arguments(argv)
 
     try:
